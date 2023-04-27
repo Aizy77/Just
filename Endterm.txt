@@ -1,0 +1,65 @@
+Procedure
+1.
+CREATE OR REPLACE PROCEDURE group_products_by_category IS
+  CURSOR product_cursor IS 
+    SELECT category_id, COUNT(*) AS total_products, SUM(price*quantity) AS revenue 
+    FROM products 
+    GROUP BY category_id;
+  v_category_id NUMBER(10);
+  v_total_products NUMBER(10);
+  v_revenue NUMBER(10);
+BEGIN
+  OPEN product_cursor;
+  LOOP
+    FETCH product_cursor INTO v_category_id, v_total_products, v_revenue;
+    EXIT WHEN product_cursor%NOTFOUND;
+    DBMS_OUTPUT.PUT_LINE('Category ' || v_category_id || ': ' || v_total_products || ' products, ' || v_revenue || ' revenue');
+  END LOOP;
+  CLOSE product_cursor;
+END;
+
+
+2.
+CREATE OR REPLACE PROCEDURE update_product_price ( 
+  p_product_id IN NUMBER, 
+  p_price IN NUMBER 
+) 
+AS 
+  v_num_rows NUMBER; 
+BEGIN 
+  UPDATE products 
+  SET price = p_price 
+  WHERE product_id = p_product_id; 
+  
+  v_num_rows := SQL%ROWCOUNT; 
+  
+  DBMS_OUTPUT.PUT_LINE('Number of rows updated: ' || v_num_rows); 
+END update_product_price;
+
+
+3.
+CREATE OR REPLACE PROCEDURE update_product_prices 
+IS
+  rows_updated INTEGER;
+BEGIN
+  UPDATE products
+  SET price = price * 1.05
+  WHERE category_id = 1;
+
+  rows_updated := SQL%ROWCOUNT;
+  DBMS_OUTPUT.PUT_LINE(rows_updated || ' products updated.');
+END;
+
+
+4.CREATE OR REPLACE PROCEDURE order_summary AS
+BEGIN
+  FOR row IN (
+    SELECT customer_id, product_id, SUM(quantity) as total_quantity, SUM(total_price) as total_revenue
+    FROM orders
+    GROUP BY customer_id, product_id
+  ) LOOP
+    DBMS_OUTPUT.PUT_LINE('Customer ' || row.customer_id || ', Product ' || row.product_id || ':');
+    DBMS_OUTPUT.PUT_LINE('Total quantity: ' || row.total_quantity);
+    DBMS_OUTPUT.PUT_LINE('Total revenue: ' || row.total_revenue);
+  END LOOP;
+END;
