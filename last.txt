@@ -1,0 +1,109 @@
+DECLARE
+  ex_invalid_title EXCEPTION;  
+v_title VARCHAR2(50) := :name;
+BEGIN
+  IF LENGTH(v_title) <= 4 THEN
+    RAISE ex_invalid_title;
+  END IF;
+EXCEPTION
+  WHEN ex_invalid_title THEN
+    DBMS_OUTPUT.PUT_LINE('You must enter more than 5 characters.');
+END;
+
+
+CREATE OR REPLACE PROCEDURE group_products_by_category IS
+  CURSOR product_cursor IS     
+  SELECT category_id, COUNT(*) AS total_products, SUM(price*quantity) AS revenue 
+    FROM products     
+    GROUP BY category_id;
+  v_category_id NUMBER(10);  
+  v_total_products NUMBER(10);
+  v_revenue NUMBER(10);
+  BEGIN
+  OPEN product_cursor;  
+  LOOP
+    FETCH product_cursor INTO v_category_id, v_total_products, v_revenue;    
+    EXIT WHEN product_cursor%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('Category ' || v_category_id || ': ' || v_total_products || ' products, ' || v_revenue || ' revenue');  END LOOP;
+  CLOSE product_cursor;
+END;
+
+
+
+CREATE OR REPLACE PROCEDURE update_product_prices IS
+  rows_updated INTEGER;BEGIN
+  UPDATE products  SET price = price * 1.05
+  WHERE category_id = 1;
+  rows_updated := SQL%ROWCOUNT;  DBMS_OUTPUT.PUT_LINE(rows_updated || ' products updated.');
+END;
+
+
+
+CREATE OR REPLACE PROCEDURE order_summary AS
+BEGIN
+  FOR row IN (SELECT customer_id, product_id, SUM(quantity) as total_quantity, SUM(total_price) as total_revenue
+    FROM orders    GROUP BY customer_id, product_id) 
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('Customer ' || row.customer_id || ', Product ' || row.product_id || ':');    
+    DBMS_OUTPUT.PUT_LINE('Total quantity: ' || row.total_quantity);
+    DBMS_OUTPUT.PUT_LINE('Total revenue: ' || row.total_revenue);  
+    END LOOP;
+END;
+
+
+CREATE OR REPLACE TRIGGER show_num_rows
+BEFORE INSERT ON products
+DECLARE
+  num_rows NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO num_rows FROM products;
+  DBMS_OUTPUT.PUT_LINE('Current number of rows in games table: ' || num_rows);
+END;
+
+
+
+CREATE OR REPLACE TRIGGER enforce_order_product_integrity 
+BEFORE INSERT OR UPDATE ON orders 
+FOR EACH ROW 
+DECLARE 
+  v_product_id NUMBER(10); 
+BEGIN 
+  SELECT product_id INTO v_product_id 
+  FROM products 
+  WHERE product_id = :NEW.product_id; 
+   
+  IF v_product_id IS NULL THEN 
+    RAISE_APPLICATION_ERROR(-20001, 'Product does not exist.'); 
+  END IF; 
+END;
+
+
+
+CREATE OR REPLACE FUNCTION count_records(table_name IN VARCHAR2)
+  RETURN NUMBER
+IS
+  num_records NUMBER;
+BEGIN
+  EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM ' || table_name INTO num_records;
+  RETURN num_records;
+END;
+
+
+SELECT count_records('customers') FROM dual;
+
+
+DECLARE
+  ex_invalid_payment EXCEPTION;
+  v_iban VARCHAR2(30) := '4400230198767865';  
+  v_cvc VARCHAR2(5) := '667';  
+BEGIN
+  IF (LENGTH(v_iban) <> 16 OR LENGTH(v_cvc) <> 3) THEN
+    RAISE ex_invalid_payment;
+  END IF;
+  
+  DBMS_OUTPUT.PUT_LINE('Payment successful.');
+
+EXCEPTION
+  WHEN ex_invalid_payment THEN
+    DBMS_OUTPUT.PUT_LINE('Invalid IBAN or CVC.');
+END;
